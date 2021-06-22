@@ -13,7 +13,9 @@ export const CHAIN_OPTIONS = [
     {value: "celo mainnet", label: "Celo Mainnet", id: 42220},
     {value: "alfajores testnet", label: "Celo Alfajores Testnet", id: 44787},
     {value: "baklava testnet", label: "Celo Baklava Testnet", id: 62320},
-    {value: "arbitrum rinkeby", label: "Arbitrum Testnet Rinkeby", id: 421611}
+    {value: "arbitrum rinkeby", label: "Arbitrum Testnet Rinkeby", id: 421611},
+    {value: "telos mainnet", label: "Telos EVM Mainnet", id: 40},
+    {value: "telos testnet", label: "Telos EVM Testnet", id: 41},
 ];
 
 export const ID_TO_CHAIN = {};

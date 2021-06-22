@@ -148,5 +148,22 @@ export default {
         "supported": true,
         "monitored": true,
         "graphQLFetchAddress": "https://rinkeby-indexer.arbitrum.io/graphql"
+    "40": {
+        "fullnode": {
+            "dappnode": "https://mainnet.telos.net/evm"
+        },
+        "supported": true,
+        "monitored": false,
+        "contractFetchAddress": "https://bscscan.com/" + ETHERSCAN_SUFFIX,
+        "txRegex": ETHERSCAN_REGEX
+    },
+    "41": {
+        "fullnode": {
+            "dappnode": "https://testnet.telos.net/evm"
+        },
+        "supported": true,
+        "monitored": false,
+        "contractFetchAddress": "https://bscscan.com/" + ETHERSCAN_SUFFIX,
+        "txRegex": ETHERSCAN_REGEX
     }
 }
