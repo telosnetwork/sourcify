@@ -2,8 +2,7 @@ import { NextFunction, Request, Response, Router } from 'express';
 import BaseController from './BaseController';
 import { IController } from '../../common/interfaces';
 import { StatusCodes } from 'http-status-codes';
-import { Logger, MatchLevel, FilesInfo } from '@ethereum-sourcify/core';
-import { IFileService,ContractData } from '../../../services/core/build';
+import { Logger, MatchLevel, FilesInfo, ContractData, IFileService } from '@ethereum-sourcify/core';
 import { param, validationResult } from 'express-validator';
 import { isValidAddress, isValidChain } from '../../common/validators/validators';
 import { NotFoundError, ValidationError } from '../../common/errors'
@@ -77,19 +76,10 @@ export default class FileController extends BaseController implements IControlle
             { prefix: "", method: this.createEndpoint(this.fileService.getContent, "full_match", "getContent full_match success") }
             
         ].forEach(pair => {
-            if(pair.prefix != '/contracts'){
-                this.router.route(pair.prefix + "/:chain/:address").get([
-                    param("chain").custom(isValidChain),
-                    param("address").custom(isValidAddress)
-                ], 
-                this.safeHandler(pair.method))
-            }
-            else{
-                this.router.route(pair.prefix + "/:chain").get([
-                    param("chain").custom(isValidChain),
-                ],
-                this.safeHandler(pair.method))
-            }                
+            let validators = [param("chain").custom(isValidChain)];
+            if(pair.prefix != '/contracts') validators.push(param("address").custom(isValidAddress))
+            this.router.route((pair.prefix != '/contracts') ? pair.prefix + "/:chain/:address" : pair.prefix + "/:chain")
+            .get(validators, this.safeHandler(pair.method))
         });
         return this.router;
     }

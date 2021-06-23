@@ -1,4 +1,4 @@
-import cbor from 'cbor';
+const cbor = require('cbor');
 import * as chainsRaw from "../chains.json";
 import sourcifyChainsRaw from "../sourcify-chains";
 import { StringMap, ReformattedMetadata, Chain } from './types';
