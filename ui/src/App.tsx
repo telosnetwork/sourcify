@@ -12,8 +12,7 @@ const App: React.FC = () => {
                 <div className="container">
                     <div className="container__left">
                         <h1 className="main-title">
-                        Harsh's Telos localhost
-                        Decentralized Metadata and Source Code Repository
+                            Decentralized Metadata and Source Code Repository
                         </h1>
                         <h3 className="sub-title">
                             Make the most of your Solidity code with metadata files and source
