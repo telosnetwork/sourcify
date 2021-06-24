@@ -28,7 +28,7 @@ export async function checkEndpoint(provider: string): Promise<void> {
             throw new Error("Check your node");
         })
     } else if (provider) {
-        await fetch(`https://mainnet.infura.io/v3/${provider}`, {
+        await fetch(`https://eth-mainnet.alchemyapi.io/v2/${provider}`, {
             method: "post",
             headers: {
                 'Accept': 'application/json',
@@ -320,4 +320,41 @@ export async function getCreationDataByScraping(fetchAddress: string, txRegex: s
     }
 
     throw new Error(`Creation data could not be scraped from ${fetchAddress}`);
+}
+
+export async function getCreationDataFromGraphQL(fetchAddress: string, contractAddress: string, web3: Web3): Promise<string> {
+    const body = JSON.stringify({ query: `
+        query AccountCreationTx {
+        allAccounts(first:1, filter: {
+            address:{
+            equalTo:"${contractAddress.toLowerCase()}"
+            },
+            creationTx: {
+            isNull: false
+            }
+        }) {
+            nodes {
+            creationTx
+            }
+        }
+        }`
+    });
+
+    const rawResponse = await fetch(fetchAddress, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body
+    });
+
+    try {
+        const resp = await rawResponse.json();
+        const txHash = resp.data.allAccounts.nodes[0].creationTx;
+        const tx = await web3.eth.getTransaction(txHash);
+        return tx.input;
+    } catch (err) {
+        throw new Error(`Creation data could not be fetched from ${fetchAddress}, reason: ${err.message}`);
+    }
 }
