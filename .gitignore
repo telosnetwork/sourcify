@@ -3,16 +3,15 @@
 db/
 node_modules/
 repository/
-mockRepository/
+mockRepository*
 server.log
 ui/node_modules/
 ui/dist/
 ui/.cache/
 source-verify.dab
-nginx.conf
 dist/
-environment/.env
 **/.env
+**/.env-backup
 **/*.key
 stats**
 tmp
@@ -22,3 +21,6 @@ metacoin-source-verify/
 **/.env.secrets
 logs
 **/too_big.txt
+chain-tests-report/
+.nyc_output
+coverage

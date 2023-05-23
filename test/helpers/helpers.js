@@ -1,82 +1,211 @@
-const dagPB = require('ipld-dag-pb');
-const UnixFS = require('ipfs-unixfs');
-const multihashes = require('multihashes');
-const Web3 = require('web3');
-const utils = require('../../services/core/build/utils/utils');
+const { etherscanAPIs } = require("../../dist/config");
+const { sourcifyChainsMap } = require("../../dist/sourcify-chains");
+const {
+  assertVerificationSession,
+  assertVerification,
+} = require("./assertions");
+const chai = require("chai");
+const chaiHttp = require("chai-http");
 
+chai.use(chaiHttp);
+
+const invalidAddress = "0x000000bCB92160f8B7E094998Af6BCaD7fa537ff"; // checksum false
+const unusedAddress = "0xf1Df8172F308e0D47D0E5f9521a5210467408535";
+const unsupportedChain = "3"; // Ropsten
 /**
- * Deploys a contract to testrpc
- * @param  {Object} web3
- * @param  {Object} artifact     ex: const Simple = require('./sources/pass/simple.js');
- * @param  {String} contractName ex: "Simple.sol"
- * @param  {String} from         sender address
- * @param  {Array}  args         constructor args
- * @return {Web3Contract}        deployed contract instance
+ *  Function to deploy contracts from provider unlocked accounts
  */
-async function deployFromArtifact(web3, artifact, from, args){
-  const abi = artifact.compilerOutput.abi;
-
+async function deployFromAbiAndBytecode(web3, abi, bytecode, from, args) {
   // Deploy contract
   const contract = new web3.eth.Contract(abi);
-  return contract.deploy({
-      data: artifact.compilerOutput.evm.bytecode.object,
-      arguments: args || []
-  }).send({ from, gasPrice: '1', gas: 4000000 });
+  const deployment = contract.deploy({
+    data: bytecode,
+    arguments: args || [],
+  });
+  const gas = await deployment.estimateGas({ from });
+  const contractResponse = await deployment.send({
+    from,
+    gas,
+  });
+  return contractResponse.options.address;
 }
 
+/**
+ * Creator tx hash is needed for tests. This function returns the tx hash in addition to the contract address.
+ *
+ * @returns The contract address and the tx hash
+ */
+async function deployFromAbiAndBytecodeForCreatorTxHash(
+  web3,
+  abi,
+  bytecode,
+  from,
+  args
+) {
+  // Deploy contract
+  const contract = new web3.eth.Contract(abi);
+  const deployment = contract.deploy({
+    data: bytecode,
+    arguments: args || [],
+  });
+  const gas = await deployment.estimateGas({ from });
+
+  // If awaited, the send() Promise returns the contract instance.
+  // We also need the tx hash so we need two seperate event listeners.
+  const sendPromiEvent = deployment.send({
+    from,
+    gas,
+  });
+
+  const txHashPromise = new Promise((resolve, reject) => {
+    sendPromiEvent.on("transactionHash", (txHash) => {
+      resolve(txHash);
+    });
+    sendPromiEvent.on("error", (error) => {
+      reject(error);
+    });
+  });
+
+  const contractAddressPromise = new Promise((resolve, reject) => {
+    sendPromiEvent.on("receipt", (receipt) => {
+      if (!receipt.contractAddress) {
+        reject(new Error("No contract address in receipt"));
+      } else {
+        resolve(receipt.contractAddress);
+      }
+    });
+    sendPromiEvent.on("error", (error) => {
+      reject(error);
+    });
+  });
+
+  return Promise.all([contractAddressPromise, txHashPromise]);
+}
+/**
+ * Function to deploy contracts from an external account with private key
+ */
+async function deployFromPrivateKey(web3, abi, bytecode, privateKey, args) {
+  const contract = new web3.eth.Contract(abi);
+  const account = web3.eth.accounts.wallet.add(privateKey);
+  const deployment = contract.deploy({
+    data: bytecode,
+    arguments: args || [],
+  });
+  const gas = await deployment.estimateGas({ from: account.address });
+  const contractResponse = await deployment.send({
+    from: account.address,
+    gas,
+  });
+  return contractResponse.options.address;
+}
 /**
  * Await `secs` seconds
  * @param  {Number} secs seconds
  * @return {Promise}
  */
-async function waitSecs(secs=0){
-  return new Promise(resolve => setTimeout(resolve, secs * 1000));
+function waitSecs(secs = 0) {
+  return new Promise((resolve) => setTimeout(resolve, secs * 1000));
 }
 
-/**
- * Derives IPFS hash of string
- * @param  {String} str
- * @return {String}     IPFS hash (ex: "Qm")
- */
-async function getIPFSHash(str){
-  const file = new UnixFS('file', Buffer.from(str));
-  const node = new dagPB.DAGNode(file.marshal());
-  const metadataLink = await node.toDAGLink()
-  return multihashes.toB58String(metadataLink._cid.multihash);
+// Uses web3.call which does not send a tx i.e. change the state, bit simulates the tx.
+async function callContractMethod(
+  web3,
+  abi,
+  contractAddress,
+  methodName,
+  from,
+  args
+) {
+  const contract = new web3.eth.Contract(abi, contractAddress);
+  const method = contract.methods[methodName](...args);
+  const gas = await method.estimateGas({ from });
+
+  const callResponse = await method.call({
+    from,
+    gas,
+  });
+
+  return callResponse;
 }
 
-/**
- * Extracts bzzr0 hash from a compiled artifact's deployed bytecode
- * @param  {Object} artifact artifact in ex: test/sources/pass
- * @return {String}          hash
- */
-function getBzzr0Hash(artifact){
-  const bytes = Web3.utils.hexToBytes(artifact.compilerOutput.evm.deployedBytecode.object);
-  const data = utils.cborDecode(bytes);
-  const val = Web3.utils.bytesToHex(data.bzzr0).slice(2);
+// Sends a tx that changes the state
+async function callContractMethodWithTx(
+  web3,
+  abi,
+  contractAddress,
+  methodName,
+  from,
+  args
+) {
+  const contract = new web3.eth.Contract(abi, contractAddress);
+  const method = contract.methods[methodName](...args);
+  const gas = await method.estimateGas({ from });
 
-  if (!val.length) throw ('Artifact does not support bzzr0');
-  return val;
+  const txReceipt = await method.send({
+    from,
+    gas,
+  });
+
+  return txReceipt;
 }
 
-/**
- * Extracts bzzr1 hash from a compiled artifact's deployed bytecode
- * @param  {Object} artifact artifact in ex: test/sources/pass
- * @return {String}          hash
- */
-function getBzzr1Hash(artifact){
-  const bytes = Web3.utils.hexToBytes(artifact.compilerOutput.evm.deployedBytecode.object);
-  const data = utils.cborDecode(bytes);
-  const val = Web3.utils.bytesToHex(data.bzzr1).slice(2);
+function verifyAndAssertEtherscan(
+  serverApp,
+  chainId,
+  address,
+  expectedStatus,
+  type
+) {
+  it(`Non-Session: Should import a ${type} contract from  #${chainId} ${sourcifyChainsMap[chainId].name} (${etherscanAPIs[chainId].apiURL}) and verify the contract, finding a ${expectedStatus} match`, (done) => {
+    let request = chai
+      .request(serverApp)
+      .post("/verify/etherscan")
+      .field("address", address)
+      .field("chain", chainId);
+    request.end((err, res) => {
+      // currentResponse = res;
+      assertVerification(err, res, done, address, chainId, expectedStatus);
+    });
+  });
+}
 
-  if (!val.length) throw ('Artifact does not support bzzr1');
-  return val;
+function verifyAndAssertEtherscanSession(
+  serverApp,
+  chainId,
+  address,
+  expectedStatus,
+  type
+) {
+  it(`Session: Should import a ${type} contract from  #${chainId} ${sourcifyChainsMap[chainId].name} (${etherscanAPIs[chainId].apiURL}) and verify the contract, finding a ${expectedStatus} match`, (done) => {
+    chai
+      .request(serverApp)
+      .post("/session/verify/etherscan")
+      .field("address", address)
+      .field("chainId", chainId)
+      .end((err, res) => {
+        // currentResponse = res;
+        assertVerificationSession(
+          err,
+          res,
+          done,
+          address,
+          chainId,
+          expectedStatus
+        );
+      });
+  });
 }
 
 module.exports = {
-  deployFromArtifact: deployFromArtifact,
-  waitSecs: waitSecs,
-  getIPFSHash: getIPFSHash,
-  getBzzr0Hash: getBzzr0Hash,
-  getBzzr1Hash: getBzzr1Hash
-}
+  deployFromAbiAndBytecode,
+  deployFromAbiAndBytecodeForCreatorTxHash,
+  deployFromPrivateKey,
+  waitSecs,
+  callContractMethod,
+  callContractMethodWithTx,
+  invalidAddress,
+  unsupportedChain,
+  unusedAddress,
+  verifyAndAssertEtherscan,
+  verifyAndAssertEtherscanSession,
+};
