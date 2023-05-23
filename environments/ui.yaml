@@ -1,34 +1,24 @@
 version: "3.7"
-x-env-file-mount:
-  &env-file-mount
-  type: bind
-  source: .env
 
 networks:
   source-verify:
 
-x-project-base:
-  &project-base
+x-project-base: &project-base
   env_file:
-  - .env
+    - .env
   restart: always
   networks:
-  - source-verify    
+    - source-verify
 
 services:
   ui:
     <<: *project-base
     image: ethereum/source-verify:ui-${TAG}
     container_name: ui-${TAG}
-    environment:
-      VIRTUAL_HOST: ${FQDN}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${UI_PORT}"]
+      test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 10
-    volumes:
-    - <<: *env-file-mount
-      target: /app/.env
     ports:
-    - "${UI_EXTERNAL_PORT}:${UI_PORT}"
+      - "${UI_EXTERNAL_PORT}:80"

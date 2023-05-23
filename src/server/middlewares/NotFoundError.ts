@@ -1,16 +1,13 @@
-import * as HttpStatus from 'http-status-codes';
-import { Request, Response } from 'express';
-import { Logger } from '@ethereum-sourcify/core';
-import * as bunyan from 'bunyan';
+import * as HttpStatus from "http-status-codes";
+import { Request, Response } from "express";
 
-export default function notFoundError(err: any, _req: Request, res: Response, _next: any): void {
-
-  if (err.log) {
-    const logger: bunyan = Logger("Error");
-    logger.error(`Error: ${JSON.stringify(err)}`);
-  }
-
+export default function notFoundError(
+  err: any,
+  _req: Request,
+  res: Response,
+  _next: any
+): void {
   res.status(HttpStatus.StatusCodes.NOT_FOUND).json({
-    error: HttpStatus.getStatusText(err.message)
+    error: HttpStatus.getStatusText(err.message),
   });
 }
