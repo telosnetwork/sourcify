@@ -23,7 +23,7 @@ const BLOCKSSCAN_SUFFIX = "api/accounts/${ADDRESS}";
 const BLOCKSCOUT_REGEX =
   'transaction_hash_link" href="${BLOCKSCOUT_PREFIX}/tx/(.*?)"';
 const BLOCKSCOUT_SUFFIX = "address/${ADDRESS}/transactions";
-const TELOS_SUFFIX = "v2/evm/get_contract?contract=${ADDRESS}";
+const TELOS_SUFFIX = "api?module=sourcify&action=contract&address=${ADDRESS}";
 const METER_SUFFIX = "api/accounts/${ADDRESS}";
 const AVALANCHE_SUBNET_SUFFIX =
   "contracts/${ADDRESS}/transactions:getDeployment";
@@ -313,12 +313,12 @@ const sourcifyChainsExtensions: SourcifyChainsExtensionsObject = {
   "40": {
     supported: true,
     monitored: false,
-    contractFetchAddress: "https://mainnet.telos.net/" + TELOS_SUFFIX,
+    contractFetchAddress: "https://api.teloscan.io/" + TELOS_SUFFIX,
   },
   "41": {
     supported: true,
     monitored: false,
-    contractFetchAddress: "https://testnet.telos.net/" + TELOS_SUFFIX,
+    contractFetchAddress: "https://api.testnet.teloscan.io/" + TELOS_SUFFIX,
   },
   "8": {
     supported: true,
